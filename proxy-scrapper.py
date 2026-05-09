@@ -1,6 +1,6 @@
 import requests
-from bs4 import BeautifulSoup
 import json
+import re
 
 filename = 'proxylist.jdproxies'
 user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' \
@@ -37,12 +37,13 @@ def create_json_structure(proxies):
 def get_proxies_from_socks_proxy_net():
     proxy_site_url = 'https://socks-proxy.net/#list'
     res = requests.get(proxy_site_url, headers={'User-Agent': user_agent})
-    soup = BeautifulSoup(res.text, "lxml")
     proxy_list = list()
-    for items in soup.select("tbody tr"):
-        proxy_definition = []
-        for item in items.select("td")[:8]:
-            proxy_definition.append(item.text)
+    rows = re.findall(r'<tr[^>]*>(.*?)</tr>', res.text, flags=re.IGNORECASE | re.DOTALL)
+    for row in rows:
+        cells = re.findall(r'<td[^>]*>(.*?)</td>', row, flags=re.IGNORECASE | re.DOTALL)
+        proxy_definition = [re.sub(r'<[^>]+>', '', cell).strip() for cell in cells[:8]]
+        if len(proxy_definition) < 5 or not proxy_definition[1].isdigit():
+            continue
         proxy_list.append(
             create_proxy_record(
                 type=proxy_definition[4].upper(), address=proxy_definition[0], port=int(proxy_definition[1]), enabled=True
